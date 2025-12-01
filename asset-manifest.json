@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/vimeo-importer/static/css/main.e38d74b0.css",
+    "main.js": "/vimeo-importer/static/js/main.8f08b84a.js",
+    "index.html": "/vimeo-importer/index.html",
+    "main.e38d74b0.css.map": "/vimeo-importer/static/css/main.e38d74b0.css.map",
+    "main.8f08b84a.js.map": "/vimeo-importer/static/js/main.8f08b84a.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.e38d74b0.css",
+    "static/js/main.8f08b84a.js"
+  ]
+}
