@@ -5,11 +5,21 @@ import React, {
   useState,
   useCallback,
 } from 'react';
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosResponse } from 'axios';
 import './App.css';
 import { IgniteLogo } from './components/IgniteLogo';
+import { VideoBrowser } from './components/VideoBrowser';
+
+// Vimeo API rate limiting configuration
+const VIMEO_MAX_RETRIES = 3;
+const VIMEO_INITIAL_RETRY_DELAY_MS = 2000;
+
+// Helper to delay execution
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Types
+type ActiveTab = 'importer' | 'browser';
+
 type ImportStage =
   | 'checking'
   | 'fetching_vimeo'
@@ -75,7 +85,10 @@ const RESUMABLE_STAGES: ImportStage[] = ['polling'];
 const FINAL_STAGES: ImportStage[] = ['complete', 'error'];
 
 function App() {
-  // Credentials
+  // Tab navigation
+  const [activeTab, setActiveTab] = useState<ActiveTab>('importer');
+
+  // Credentials (shared between tabs)
   const [vimeoToken, setVimeoToken] = useState<string>('');
   const [igniteToken, setIgniteToken] = useState<string>('');
   const [apiBase, setApiBase] = useState<string>(DEFAULT_API_BASE);
@@ -299,15 +312,52 @@ function App() {
     return err.message || 'Unknown error';
   };
 
-  // Fetch Vimeo video data
+  // Fetch Vimeo video data with rate limit handling
   const fetchVimeoData = async (videoId: string): Promise<VimeoVideoData> => {
     const url = `https://api.vimeo.com/videos/${videoId}`;
-    const response = await axios.get(url, {
-      headers: {
-        Authorization: `Bearer ${vimeoToken}`,
-      },
-    });
-    return response.data;
+    let retries = 0;
+    let retryDelay = VIMEO_INITIAL_RETRY_DELAY_MS;
+
+    while (true) {
+      try {
+        const response: AxiosResponse<VimeoVideoData> = await axios.get(url, {
+          headers: {
+            Authorization: `Bearer ${vimeoToken}`,
+          },
+        });
+        return response.data;
+      } catch (error) {
+        const axiosError = error as AxiosError;
+
+        // Check if it's a rate limit error (429)
+        if (axiosError.response?.status === 429) {
+          retries++;
+          if (retries > VIMEO_MAX_RETRIES) {
+            throw new Error(
+              `Vimeo API rate limit exceeded. Max retries (${VIMEO_MAX_RETRIES}) reached.`
+            );
+          }
+
+          // Check for Retry-After header
+          const retryAfter = axiosError.response.headers['retry-after'];
+          const waitTime = retryAfter
+            ? parseInt(retryAfter, 10) * 1000
+            : retryDelay;
+
+          console.log(
+            `Vimeo rate limited. Waiting ${Math.ceil(
+              waitTime / 1000
+            )}s before retry ${retries}/${VIMEO_MAX_RETRIES}...`
+          );
+          await delay(waitTime);
+          retryDelay *= 2; // Exponential backoff
+          continue;
+        }
+
+        // Re-throw other errors
+        throw error;
+      }
+    }
   };
 
   // Test CORS by attempting a small range request on the download URL
@@ -840,288 +890,312 @@ function App() {
     <div className="importer-root">
       <header className="header">
         <h1>
-          <IgniteLogo className="header-logo" /> Vimeo Importer
+          <IgniteLogo className="header-logo" /> Vimeo Tools
         </h1>
-        <p>Import videos from Vimeo to Ignite Video Cloud</p>
+        <p>Import and manage Vimeo videos for Ignite Video Cloud</p>
       </header>
 
-      <div className="main-layout">
-        {/* Left Panel - Form */}
-        <div className="form-panel">
-          {/* Credentials Section */}
-          <section className="section">
-            <h2 className="section-title">Credentials</h2>
+      {/* Tab Navigation */}
+      <nav className="tab-nav">
+        <button
+          className={`tab-btn ${activeTab === 'importer' ? 'active' : ''}`}
+          onClick={() => setActiveTab('importer')}
+        >
+          Importer
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'browser' ? 'active' : ''}`}
+          onClick={() => setActiveTab('browser')}
+        >
+          Video Browser
+        </button>
+      </nav>
 
-            <div className="form-row">
-              <label htmlFor="vimeo-token">Vimeo Token</label>
-              <input
-                id="vimeo-token"
-                type="password"
-                placeholder="Your Vimeo API access token"
-                value={vimeoToken}
-                onChange={(e) => setVimeoToken(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
+      {activeTab === 'importer' && (
+        <div className="main-layout">
+          {/* Left Panel - Form */}
+          <div className="form-panel">
+            {/* Credentials Section */}
+            <section className="section">
+              <h2 className="section-title">Credentials</h2>
 
-            <div className="form-row">
-              <label htmlFor="ignite-token">Ignite Token</label>
-              <input
-                id="ignite-token"
-                type="password"
-                placeholder="Your Ignite API access token"
-                value={igniteToken}
-                onChange={(e) => setIgniteToken(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-
-            <div className="form-row">
-              <label htmlFor="api-base">API Base</label>
-              <input
-                id="api-base"
-                type="text"
-                placeholder="https://app.ignitevideo.cloud/api"
-                value={apiBase}
-                onChange={(e) => setApiBase(e.target.value)}
-              />
-            </div>
-          </section>
-
-          {/* Video Input Section */}
-          <section className="section">
-            <h2 className="section-title">Video</h2>
-
-            <div className="form-row">
-              <label htmlFor="vimeo-id">Vimeo ID</label>
-              <input
-                id="vimeo-id"
-                type="text"
-                placeholder="e.g., 123456789"
-                value={vimeoId}
-                onChange={(e) => setVimeoId(e.target.value)}
-              />
-            </div>
-
-            {/* CORS Test */}
-            {corsResult !== 'untested' && (
-              <div
-                className={`cors-result ${
-                  corsResult === 'success'
-                    ? 'success'
-                    : corsResult === 'failure'
-                    ? 'failure'
-                    : corsResult === 'error'
-                    ? 'error'
-                    : ''
-                }`}
-              >
-                {corsMessage}
-              </div>
-            )}
-          </section>
-
-          {/* Options Section */}
-          <section className="section">
-            <h2 className="section-title">Options</h2>
-
-            <div className="form-row">
-              <label htmlFor="visibility">Visibility</label>
-              <select
-                id="visibility"
-                value={visibility}
-                onChange={(e) =>
-                  setVisibility(e.target.value as 'private' | 'public')
-                }
-              >
-                <option value="private">Private</option>
-                <option value="public">Public</option>
-              </select>
-            </div>
-
-            <div className="form-row">
-              <label htmlFor="language">Language</label>
-              <input
-                id="language"
-                type="text"
-                placeholder="e.g., en, de, fr (optional)"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-              />
-            </div>
-
-            <div className="form-row">
-              <label htmlFor="tags">Tags</label>
-              <input
-                id="tags"
-                type="text"
-                placeholder="tag1, tag2, tag3"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-              />
-            </div>
-
-            <div className="form-row">
-              <label htmlFor="category-id">Category ID</label>
-              <input
-                id="category-id"
-                type="text"
-                placeholder="Category ID (optional)"
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-              />
-            </div>
-
-            <div className="form-row">
-              <label></label>
-              <div className="checkbox-row">
+              <div className="form-row">
+                <label htmlFor="vimeo-token">Vimeo Token</label>
                 <input
-                  type="checkbox"
-                  id="auto-transcribe"
-                  checked={autoTranscribe}
-                  onChange={(e) => setAutoTranscribe(e.target.checked)}
+                  id="vimeo-token"
+                  type="password"
+                  placeholder="Your Vimeo API access token"
+                  value={vimeoToken}
+                  onChange={(e) => setVimeoToken(e.target.value)}
+                  autoComplete="off"
                 />
-                <label htmlFor="auto-transcribe">Auto-transcribe</label>
               </div>
-            </div>
-          </section>
 
-          {/* Actions */}
-          <div className="actions">
-            <button
-              className="btn-primary"
-              onClick={startImport}
-              disabled={!canImport}
-            >
-              Add to Queue
-            </button>
+              <div className="form-row">
+                <label htmlFor="ignite-token">Ignite Token</label>
+                <input
+                  id="ignite-token"
+                  type="password"
+                  placeholder="Your Ignite API access token"
+                  value={igniteToken}
+                  onChange={(e) => setIgniteToken(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
 
-            <button
-              className="btn-test"
-              onClick={testCors}
-              disabled={!canTestCors}
-            >
-              {corsResult === 'testing' ? 'Testing...' : 'Test CORS'}
-            </button>
+              <div className="form-row">
+                <label htmlFor="api-base">API Base</label>
+                <input
+                  id="api-base"
+                  type="text"
+                  placeholder="https://app.ignitevideo.cloud/api"
+                  value={apiBase}
+                  onChange={(e) => setApiBase(e.target.value)}
+                />
+              </div>
+            </section>
 
-            {hasFinishedImports && (
-              <button className="btn-secondary" onClick={clearFinished}>
-                Clear Finished
+            {/* Video Input Section */}
+            <section className="section">
+              <h2 className="section-title">Video</h2>
+
+              <div className="form-row">
+                <label htmlFor="vimeo-id">Vimeo ID</label>
+                <input
+                  id="vimeo-id"
+                  type="text"
+                  placeholder="e.g., 123456789"
+                  value={vimeoId}
+                  onChange={(e) => setVimeoId(e.target.value)}
+                />
+              </div>
+
+              {/* CORS Test */}
+              {corsResult !== 'untested' && (
+                <div
+                  className={`cors-result ${
+                    corsResult === 'success'
+                      ? 'success'
+                      : corsResult === 'failure'
+                      ? 'failure'
+                      : corsResult === 'error'
+                      ? 'error'
+                      : ''
+                  }`}
+                >
+                  {corsMessage}
+                </div>
+              )}
+            </section>
+
+            {/* Options Section */}
+            <section className="section">
+              <h2 className="section-title">Options</h2>
+
+              <div className="form-row">
+                <label htmlFor="visibility">Visibility</label>
+                <select
+                  id="visibility"
+                  value={visibility}
+                  onChange={(e) =>
+                    setVisibility(e.target.value as 'private' | 'public')
+                  }
+                >
+                  <option value="private">Private</option>
+                  <option value="public">Public</option>
+                </select>
+              </div>
+
+              <div className="form-row">
+                <label htmlFor="language">Language</label>
+                <input
+                  id="language"
+                  type="text"
+                  placeholder="e.g., en, de, fr (optional)"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                />
+              </div>
+
+              <div className="form-row">
+                <label htmlFor="tags">Tags</label>
+                <input
+                  id="tags"
+                  type="text"
+                  placeholder="tag1, tag2, tag3"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                />
+              </div>
+
+              <div className="form-row">
+                <label htmlFor="category-id">Category ID</label>
+                <input
+                  id="category-id"
+                  type="text"
+                  placeholder="Category ID (optional)"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                />
+              </div>
+
+              <div className="form-row">
+                <label></label>
+                <div className="checkbox-row">
+                  <input
+                    type="checkbox"
+                    id="auto-transcribe"
+                    checked={autoTranscribe}
+                    onChange={(e) => setAutoTranscribe(e.target.checked)}
+                  />
+                  <label htmlFor="auto-transcribe">Auto-transcribe</label>
+                </div>
+              </div>
+            </section>
+
+            {/* Actions */}
+            <div className="actions">
+              <button
+                className="btn-primary"
+                onClick={startImport}
+                disabled={!canImport}
+              >
+                Add to Queue
               </button>
-            )}
+
+              <button
+                className="btn-test"
+                onClick={testCors}
+                disabled={!canTestCors}
+              >
+                {corsResult === 'testing' ? 'Testing...' : 'Test CORS'}
+              </button>
+
+              {hasFinishedImports && (
+                <button className="btn-secondary" onClick={clearFinished}>
+                  Clear Finished
+                </button>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Right Panel - Queue */}
-        <div className="queue-panel">
-          <div className="import-queue">
-            <h2 className="section-title">Import Queue</h2>
+          {/* Right Panel - Queue */}
+          <div className="queue-panel">
+            <div className="import-queue">
+              <h2 className="section-title">Import Queue</h2>
 
-            {imports.length === 0 ? (
-              <div className="queue-empty">
-                <p>No imports yet</p>
-                <span>Enter a Vimeo ID and click "Add to Queue" to start</span>
-              </div>
-            ) : (
-              <div className="queue-list">
-                {imports.map((item) => (
-                  <div
-                    className={`queue-item ${
-                      item.stage === 'complete'
-                        ? 'complete'
-                        : item.stage === 'error'
-                        ? 'error'
-                        : ''
-                    }`}
-                    key={item.id}
-                  >
-                    <div className="queue-item-header">
-                      <div className="queue-item-title">
-                        {item.vimeoData?.name || `Vimeo ${item.vimeoId}`}
-                      </div>
-                      <div className="queue-item-actions">
-                        <span
-                          className={`status-badge ${getStageBadgeClass(
-                            item.stage
-                          )}`}
-                        >
-                          {getStageLabel(item.stage)}
-                        </span>
-                        {(item.stage === 'complete' ||
-                          item.stage === 'error' ||
-                          item.stage === 'polling') && (
-                          <button
-                            className="btn-remove"
-                            onClick={() => removeImport(item.id)}
-                            title="Remove"
+              {imports.length === 0 ? (
+                <div className="queue-empty">
+                  <p>No imports yet</p>
+                  <span>
+                    Enter a Vimeo ID and click "Add to Queue" to start
+                  </span>
+                </div>
+              ) : (
+                <div className="queue-list">
+                  {imports.map((item) => (
+                    <div
+                      className={`queue-item ${
+                        item.stage === 'complete'
+                          ? 'complete'
+                          : item.stage === 'error'
+                          ? 'error'
+                          : ''
+                      }`}
+                      key={item.id}
+                    >
+                      <div className="queue-item-header">
+                        <div className="queue-item-title">
+                          {item.vimeoData?.name || `Vimeo ${item.vimeoId}`}
+                        </div>
+                        <div className="queue-item-actions">
+                          <span
+                            className={`status-badge ${getStageBadgeClass(
+                              item.stage
+                            )}`}
                           >
-                            ×
-                          </button>
-                        )}
+                            {getStageLabel(item.stage)}
+                          </span>
+                          {(item.stage === 'complete' ||
+                            item.stage === 'error' ||
+                            item.stage === 'polling') && (
+                            <button
+                              className="btn-remove"
+                              onClick={() => removeImport(item.id)}
+                              title="Remove"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Progress bar */}
-                    <div className="progress-container">
-                      <div className="progress-bar">
-                        <div
-                          className="progress-fill"
-                          style={{ width: `${item.progress}%` }}
-                        />
+                      {/* Progress bar */}
+                      <div className="progress-container">
+                        <div className="progress-bar">
+                          <div
+                            className="progress-fill"
+                            style={{ width: `${item.progress}%` }}
+                          />
+                        </div>
+                        <div className="progress-text">
+                          <span>{item.statusText}</span>
+                          <span>{Math.round(item.progress)}%</span>
+                        </div>
                       </div>
-                      <div className="progress-text">
-                        <span>{item.statusText}</span>
-                        <span>{Math.round(item.progress)}%</span>
-                      </div>
-                    </div>
 
-                    {/* Error message */}
-                    {item.errorMessage && (
-                      <div className="queue-item-error">
-                        {item.errorMessage}
-                      </div>
-                    )}
-
-                    {/* Success link */}
-                    {item.stage === 'complete' && item.igniteVideoId && (
-                      <div className="queue-item-success">
-                        <a
-                          href={`${apiBaseSanitized.replace(
-                            '/api',
-                            ''
-                          )}/admin/collections/videos/${item.igniteVideoId}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          View in Ignite →
-                        </a>
-                      </div>
-                    )}
-
-                    {/* Video info */}
-                    <div className="queue-item-info">
-                      {item.vimeoData && (
-                        <span>
-                          {formatDuration(item.vimeoData.duration)} ·{' '}
-                          {item.vimeoData.width}x{item.vimeoData.height}
-                        </span>
+                      {/* Error message */}
+                      {item.errorMessage && (
+                        <div className="queue-item-error">
+                          {item.errorMessage}
+                        </div>
                       )}
-                      <span className="video-ids">
-                        <span className="vimeo-id">Vimeo: {item.vimeoId}</span>
-                        {item.igniteVideoId && (
-                          <span className="ignite-id">
-                            Ignite: {item.igniteVideoId}
+
+                      {/* Success link */}
+                      {item.stage === 'complete' && item.igniteVideoId && (
+                        <div className="queue-item-success">
+                          <a
+                            href={`${apiBaseSanitized.replace(
+                              '/api',
+                              ''
+                            )}/admin/collections/videos/${item.igniteVideoId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View in Ignite →
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Video info */}
+                      <div className="queue-item-info">
+                        {item.vimeoData && (
+                          <span>
+                            {formatDuration(item.vimeoData.duration)} ·{' '}
+                            {item.vimeoData.width}x{item.vimeoData.height}
                           </span>
                         )}
-                      </span>
+                        <span className="video-ids">
+                          <span className="vimeo-id">
+                            Vimeo: {item.vimeoId}
+                          </span>
+                          {item.igniteVideoId && (
+                            <span className="ignite-id">
+                              Ignite: {item.igniteVideoId}
+                            </span>
+                          )}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'browser' && <VideoBrowser vimeoToken={vimeoToken} />}
 
       <footer className="footer">
         <span>Vimeo ID is stored in customMetadata.vimeoId</span>
