@@ -66,6 +66,7 @@ interface ImportItem {
   vimeoData: VimeoVideoData | null;
   igniteVideoId: string | null;
   thumbnailUrl: string | null;
+  pendingThumbnailUrl: string | null; // Vimeo thumbnail URL to upload after encoding
   errorMessage: string | null;
   // Snapshot of options at import time
   options: {
@@ -113,6 +114,12 @@ function App() {
 
   // Polling timers (one per import item)
   const pollTimersRef = useRef<Map<string, number>>(new Map());
+
+  // Ref to always access latest imports state (needed for polling callbacks)
+  const importsRef = useRef<ImportItem[]>(imports);
+  useEffect(() => {
+    importsRef.current = imports;
+  }, [imports]);
 
   // Load saved tokens and imports from localStorage
   useEffect(() => {
@@ -538,15 +545,67 @@ function App() {
           const errorStatuses = ['FAILED', 'ERROR'];
 
           if (doneStatuses.includes(status)) {
-            updateImport(importId, (prev) => ({
-              ...prev,
-              stage: 'complete',
-              statusText: 'Import complete!',
-              progress: 100,
-            }));
+            // Stop polling first
             const t = pollTimersRef.current.get(importId);
             if (t) window.clearInterval(t);
             pollTimersRef.current.delete(importId);
+
+            // Check if there's a pending thumbnail to upload
+            // Use ref to get latest state (closure would have stale data)
+            const currentImport = importsRef.current.find(
+              (i) => i.id === importId
+            );
+            if (currentImport?.pendingThumbnailUrl) {
+              updateImport(importId, (prev) => ({
+                ...prev,
+                stage: 'uploading_thumbnail',
+                statusText: 'Uploading thumbnail...',
+                progress: 98,
+              }));
+
+              try {
+                // Fetch thumbnail from Vimeo
+                const thumbResponse = await axios.get(
+                  currentImport.pendingThumbnailUrl,
+                  { responseType: 'blob' }
+                );
+
+                // Upload to Ignite
+                const uploadedThumbUrl = await uploadThumbnail(
+                  videoId,
+                  thumbResponse.data as Blob
+                );
+
+                updateImport(importId, (prev) => ({
+                  ...prev,
+                  stage: 'complete',
+                  statusText: 'Import complete!',
+                  progress: 100,
+                  thumbnailUrl: uploadedThumbUrl,
+                  pendingThumbnailUrl: null,
+                }));
+              } catch (thumbError) {
+                console.warn(
+                  'Thumbnail upload failed after encoding:',
+                  thumbError
+                );
+                // Still mark as complete, just without thumbnail
+                updateImport(importId, (prev) => ({
+                  ...prev,
+                  stage: 'complete',
+                  statusText: 'Complete (thumbnail failed)',
+                  progress: 100,
+                  pendingThumbnailUrl: null,
+                }));
+              }
+            } else {
+              updateImport(importId, (prev) => ({
+                ...prev,
+                stage: 'complete',
+                statusText: 'Import complete!',
+                progress: 100,
+              }));
+            }
           } else if (errorStatuses.includes(status)) {
             updateImport(importId, (prev) => ({
               ...prev,
@@ -703,52 +762,28 @@ function App() {
           }
         );
 
-        // Step 5: Upload thumbnail if available
-        let thumbnailUrl: string | null = null;
+        // Step 5: Store thumbnail URL for upload after encoding completes
+        let pendingThumbnailUrl: string | null = null;
         if (
           vimeoData.pictures?.active &&
           vimeoData.pictures.sizes &&
           vimeoData.pictures.sizes.length > 0
         ) {
-          updateImport(id, (prev) => ({
-            ...prev,
-            stage: 'uploading_thumbnail',
-            statusText: 'Uploading thumbnail...',
-            progress: 92,
-          }));
-
-          try {
-            const largestThumb = vimeoData.pictures.sizes.reduce(
-              (largest, current) =>
-                current.width > largest.width ? current : largest
-            );
-
-            const thumbResponse = await axios.get(largestThumb.link, {
-              responseType: 'blob',
-            });
-
-            thumbnailUrl = await uploadThumbnail(
-              igniteVideoId,
-              thumbResponse.data as Blob
-            );
-
-            updateImport(id, (prev) => ({
-              ...prev,
-              thumbnailUrl,
-              progress: 95,
-            }));
-          } catch (thumbError) {
-            console.warn('Thumbnail upload failed:', thumbError);
-          }
+          const largestThumb = vimeoData.pictures.sizes.reduce(
+            (largest, current) =>
+              current.width > largest.width ? current : largest
+          );
+          pendingThumbnailUrl = largestThumb.link;
         }
 
         // Step 6: Start polling for encoding status
+        // Thumbnail will be uploaded after encoding completes
         updateImport(id, (prev) => ({
           ...prev,
           stage: 'polling',
           statusText: 'Processing...',
-          progress: 98,
-          thumbnailUrl,
+          progress: 95,
+          pendingThumbnailUrl,
         }));
 
         pollVideoStatus(id, igniteVideoId);
@@ -784,6 +819,7 @@ function App() {
       vimeoData: null,
       igniteVideoId: null,
       thumbnailUrl: null,
+      pendingThumbnailUrl: null,
       errorMessage: null,
       options: {
         visibility,
