@@ -1,6 +1,79 @@
-/* Vimeo Importer - Dark terminal aesthetic with cyan accents */
+/* Vimeo Importer - Ignite brand colors */
 
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* Derived colors using color-mix */
+:root {
+  --poolparty-dim: color-mix(in srgb, var(--color-poolparty) 15%, transparent);
+  --poolparty-glow: color-mix(in srgb, var(--color-poolparty) 25%, transparent);
+  --poolparty-border: color-mix(
+    in srgb,
+    var(--color-poolparty) 20%,
+    transparent
+  );
+  --poolparty-dark: color-mix(
+    in srgb,
+    var(--color-poolparty) 80%,
+    var(--color-midnight)
+  );
+
+  --blueberry-dim: color-mix(in srgb, var(--color-blueberry) 15%, transparent);
+  --blueberry-border: color-mix(
+    in srgb,
+    var(--color-blueberry) 20%,
+    transparent
+  );
+
+  --raspberry-dim: color-mix(in srgb, var(--color-raspberry) 15%, transparent);
+  --raspberry-border: color-mix(
+    in srgb,
+    var(--color-raspberry) 20%,
+    transparent
+  );
+  --raspberry-light: color-mix(in srgb, var(--color-raspberry) 70%, white);
+
+  /* Functional state colors */
+  --fn-green-dim: color-mix(
+    in srgb,
+    var(--color-function-green) 15%,
+    transparent
+  );
+  --fn-green-border: color-mix(
+    in srgb,
+    var(--color-function-green) 20%,
+    transparent
+  );
+
+  --fn-orange-dim: color-mix(
+    in srgb,
+    var(--color-function-orange) 15%,
+    transparent
+  );
+  --fn-orange-border: color-mix(
+    in srgb,
+    var(--color-function-orange) 20%,
+    transparent
+  );
+
+  --fn-red-dim: color-mix(in srgb, var(--color-function-red) 15%, transparent);
+  --fn-red-border: color-mix(
+    in srgb,
+    var(--color-function-red) 20%,
+    transparent
+  );
+  --fn-red-light: color-mix(in srgb, var(--color-function-red) 70%, white);
+
+  --fn-grey-dim: color-mix(
+    in srgb,
+    var(--color-function-grey) 15%,
+    transparent
+  );
+  --fn-grey-border: color-mix(
+    in srgb,
+    var(--color-function-grey) 20%,
+    transparent
+  );
+}
 
 .importer-root {
   width: 100%;
@@ -30,18 +103,30 @@
 .header {
   margin-bottom: 32px;
   padding-bottom: 24px;
-  border-bottom: 1px solid rgba(0, 255, 255, 0.15);
+  border-bottom: 1px solid var(--poolparty-dim);
 }
 
 .header h1 {
   font-size: 28px;
   font-weight: 700;
   margin: 0 0 8px 0;
-  background: linear-gradient(90deg, #00ffff, #00d4ff, #0099ff);
+  background: linear-gradient(
+    90deg,
+    var(--color-poolparty),
+    var(--color-blueberry)
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   letter-spacing: -0.5px;
+  display: flex;
+  gap: 24px;
+  align-items: center;
+
+  .header-logo {
+    width: 170px;
+    height: auto;
+  }
 }
 
 .header p {
@@ -61,7 +146,7 @@
 }
 
 .section:hover {
-  border-color: rgba(0, 255, 255, 0.12);
+  border-color: var(--poolparty-dim);
 }
 
 .section-title {
@@ -69,7 +154,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: #00ffff;
+  color: var(--color-poolparty);
   margin: 0 0 16px 0;
   display: flex;
   align-items: center;
@@ -120,8 +205,8 @@ input[type='text']:focus,
 input[type='password']:focus,
 input[type='number']:focus {
   outline: none;
-  border-color: rgba(0, 255, 255, 0.4);
-  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.08);
+  border-color: color-mix(in srgb, var(--color-poolparty) 50%, transparent);
+  box-shadow: 0 0 0 3px var(--poolparty-dim);
 }
 
 input::placeholder {
@@ -144,12 +229,12 @@ select {
 
 select:focus {
   outline: none;
-  border-color: rgba(0, 255, 255, 0.4);
-  box-shadow: 0 0 0 3px rgba(0, 255, 255, 0.08);
+  border-color: color-mix(in srgb, var(--color-poolparty) 50%, transparent);
+  box-shadow: 0 0 0 3px var(--poolparty-dim);
 }
 
 select option {
-  background: #1a1a2e;
+  background: var(--color-midnight);
   color: #e4e4e7;
 }
 
@@ -163,7 +248,7 @@ select option {
 .checkbox-row input[type='checkbox'] {
   width: 18px;
   height: 18px;
-  accent-color: #00ffff;
+  accent-color: var(--color-poolparty);
   cursor: pointer;
 }
 
@@ -191,14 +276,19 @@ button {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #00ffff 0%, #00d4ff 100%);
-  color: #0f0f1a;
-  box-shadow: 0 4px 20px rgba(0, 255, 255, 0.25);
+  background: linear-gradient(
+    135deg,
+    var(--color-poolparty) 0%,
+    var(--poolparty-dark) 100%
+  );
+  color: var(--color-midnight);
+  box-shadow: 0 4px 20px var(--poolparty-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 6px 28px rgba(0, 255, 255, 0.35);
+  box-shadow: 0 6px 28px
+    color-mix(in srgb, var(--color-poolparty) 35%, transparent);
 }
 
 .btn-primary:disabled {
@@ -224,13 +314,13 @@ button {
 }
 
 .btn-test {
-  background: rgba(255, 200, 0, 0.1);
-  color: #ffc800;
-  border: 1px solid rgba(255, 200, 0, 0.2);
+  background: var(--blueberry-dim);
+  color: var(--color-blueberry);
+  border: 1px solid var(--blueberry-border);
 }
 
 .btn-test:hover:not(:disabled) {
-  background: rgba(255, 200, 0, 0.15);
+  background: color-mix(in srgb, var(--color-blueberry) 20%, transparent);
 }
 
 /* Status card */
@@ -268,42 +358,42 @@ button {
 }
 
 .status-badge.pending {
-  background: rgba(113, 113, 122, 0.2);
-  color: #71717a;
+  background: var(--fn-grey-dim);
+  color: var(--color-function-grey);
 }
 
 .status-badge.fetching {
-  background: rgba(0, 255, 255, 0.15);
-  color: #00ffff;
+  background: var(--fn-orange-dim);
+  color: var(--color-function-orange);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .status-badge.downloading {
-  background: rgba(255, 200, 0, 0.15);
-  color: #ffc800;
+  background: var(--fn-orange-dim);
+  color: var(--color-function-orange);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .status-badge.uploading {
-  background: rgba(0, 200, 255, 0.15);
-  color: #00c8ff;
+  background: var(--fn-orange-dim);
+  color: var(--color-function-orange);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .status-badge.processing {
-  background: rgba(200, 100, 255, 0.15);
-  color: #c864ff;
+  background: var(--fn-orange-dim);
+  color: var(--color-function-orange);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .status-badge.complete {
-  background: rgba(0, 255, 128, 0.15);
-  color: #00ff80;
+  background: var(--fn-green-dim);
+  color: var(--color-function-green);
 }
 
 .status-badge.error {
-  background: rgba(255, 80, 80, 0.15);
-  color: #ff5050;
+  background: var(--fn-red-dim);
+  color: var(--color-function-red);
 }
 
 @keyframes pulse {
@@ -330,7 +420,11 @@ button {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #00ffff, #00d4ff);
+  background: linear-gradient(
+    90deg,
+    var(--color-poolparty),
+    var(--color-blueberry)
+  );
   border-radius: 3px;
   transition: width 0.3s ease;
 }
@@ -395,10 +489,10 @@ button {
 /* Error message */
 .error-message {
   padding: 16px;
-  background: rgba(255, 80, 80, 0.08);
-  border: 1px solid rgba(255, 80, 80, 0.2);
+  background: color-mix(in srgb, var(--color-function-red) 8%, transparent);
+  border: 1px solid var(--fn-red-border);
   border-radius: 8px;
-  color: #ff8080;
+  color: var(--fn-red-light);
   font-size: 13px;
   margin-bottom: 24px;
 }
@@ -406,16 +500,16 @@ button {
 /* Success message */
 .success-message {
   padding: 16px;
-  background: rgba(0, 255, 128, 0.08);
-  border: 1px solid rgba(0, 255, 128, 0.2);
+  background: color-mix(in srgb, var(--color-function-green) 8%, transparent);
+  border: 1px solid var(--fn-green-border);
   border-radius: 8px;
-  color: #00ff80;
+  color: var(--color-function-green);
   font-size: 13px;
   margin-bottom: 24px;
 }
 
 .success-message a {
-  color: #00ffff;
+  color: var(--color-blueberry);
   text-decoration: none;
 }
 
@@ -432,21 +526,21 @@ button {
 }
 
 .cors-result.success {
-  background: rgba(0, 255, 128, 0.08);
-  border: 1px solid rgba(0, 255, 128, 0.2);
-  color: #00ff80;
+  background: color-mix(in srgb, var(--color-function-green) 8%, transparent);
+  border: 1px solid var(--fn-green-border);
+  color: var(--color-function-green);
 }
 
 .cors-result.failure {
-  background: rgba(255, 200, 0, 0.08);
-  border: 1px solid rgba(255, 200, 0, 0.2);
-  color: #ffc800;
+  background: color-mix(in srgb, var(--color-function-orange) 8%, transparent);
+  border: 1px solid var(--fn-orange-border);
+  color: var(--color-function-orange);
 }
 
 .cors-result.error {
-  background: rgba(255, 80, 80, 0.08);
-  border: 1px solid rgba(255, 80, 80, 0.2);
-  color: #ff8080;
+  background: color-mix(in srgb, var(--color-function-red) 8%, transparent);
+  border: 1px solid var(--fn-red-border);
+  color: var(--fn-red-light);
 }
 
 /* Footer */
@@ -468,15 +562,15 @@ button {
 }
 
 .footer a:hover {
-  color: #00ffff;
+  color: var(--color-poolparty);
 }
 
 /* Loading spinner */
 .spinner {
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(0, 255, 255, 0.2);
-  border-top-color: #00ffff;
+  border: 2px solid var(--poolparty-border);
+  border-top-color: var(--color-poolparty);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
   display: inline-block;
@@ -519,24 +613,24 @@ button {
 }
 
 .stage-icon.pending {
-  background: rgba(113, 113, 122, 0.2);
-  color: #71717a;
+  background: var(--fn-grey-dim);
+  color: var(--color-function-grey);
 }
 
 .stage-icon.active {
-  background: rgba(0, 255, 255, 0.2);
-  color: #00ffff;
+  background: var(--fn-orange-border);
+  color: var(--color-function-orange);
   animation: pulse 1.5s ease-in-out infinite;
 }
 
 .stage-icon.complete {
-  background: rgba(0, 255, 128, 0.2);
-  color: #00ff80;
+  background: var(--fn-green-border);
+  color: var(--color-function-green);
 }
 
 .stage-icon.error {
-  background: rgba(255, 80, 80, 0.2);
-  color: #ff5050;
+  background: var(--fn-red-border);
+  color: var(--color-function-red);
 }
 
 .stage-label {
@@ -620,11 +714,11 @@ button {
 }
 
 .queue-item.complete {
-  border-color: rgba(0, 255, 128, 0.2);
+  border-color: var(--fn-green-border);
 }
 
 .queue-item.error {
-  border-color: rgba(255, 80, 80, 0.2);
+  border-color: var(--fn-red-border);
 }
 
 .queue-item-header {
@@ -657,8 +751,8 @@ button {
   height: 24px;
   padding: 0;
   border: none;
-  background: rgba(255, 80, 80, 0.1);
-  color: #ff8080;
+  background: color-mix(in srgb, var(--color-function-red) 10%, transparent);
+  color: var(--color-function-red);
   border-radius: 4px;
   font-size: 16px;
   line-height: 1;
@@ -667,16 +761,16 @@ button {
 }
 
 .btn-remove:hover {
-  background: rgba(255, 80, 80, 0.2);
+  background: var(--fn-red-border);
 }
 
 .queue-item-error {
   margin-top: 8px;
   padding: 8px 12px;
-  background: rgba(255, 80, 80, 0.08);
+  background: color-mix(in srgb, var(--color-function-red) 8%, transparent);
   border-radius: 6px;
   font-size: 12px;
-  color: #ff8080;
+  color: var(--fn-red-light);
 }
 
 .queue-item-success {
@@ -685,7 +779,7 @@ button {
 }
 
 .queue-item-success a {
-  color: #00ffff;
+  color: var(--color-poolparty);
   text-decoration: none;
 }
 

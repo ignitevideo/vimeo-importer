@@ -2,6 +2,18 @@
   box-sizing: border-box;
 }
 
+:root {
+  --color-raspberry: #d90b5a;
+  --color-poolparty: #84f0d7;
+  --color-blueberry: #5668f0;
+  --color-midnight: #032b40;
+
+  --color-function-green: #66af1e;
+  --color-function-grey: #678293;
+  --color-function-orange: #ff7a00;
+  --color-function-red: #d52727;
+}
+
 body {
   margin: 0;
   font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, monospace;

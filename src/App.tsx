@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import axios, { AxiosError } from 'axios';
 import './App.css';
+import { IgniteLogo } from './components/IgniteLogo';
 
 // Types
 type ImportStage =
@@ -838,7 +839,9 @@ function App() {
   return (
     <div className="importer-root">
       <header className="header">
-        <h1>Vimeo Importer</h1>
+        <h1>
+          <IgniteLogo className="header-logo" /> Vimeo Importer
+        </h1>
         <p>Import videos from Vimeo to Ignite Video Cloud</p>
       </header>
 
