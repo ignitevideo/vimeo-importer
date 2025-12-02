@@ -446,6 +446,7 @@ function App() {
   // Create video in Ignite
   const createIgniteVideo = async (
     title: string,
+    description: string | null,
     vimeoVideoId: string,
     options: ImportItem['options']
   ): Promise<{ videoId: string; signedUrl: string }> => {
@@ -457,6 +458,11 @@ function App() {
       autoTranscribe: options.autoTranscribe,
       customMetadata: { vimeoId: vimeoVideoId },
     };
+
+    // Add description if available
+    if (description && description.trim()) {
+      payload.description = description.trim();
+    }
 
     if (options.language.trim()) {
       payload.language = options.language.trim();
@@ -732,6 +738,7 @@ function App() {
 
         const { videoId: igniteVideoId, signedUrl } = await createIgniteVideo(
           vimeoData.name,
+          vimeoData.description,
           itemVimeoId,
           options
         );
