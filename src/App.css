@@ -773,6 +773,36 @@ button {
   color: var(--fn-red-light);
 }
 
+.queue-item-pending {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-start-import {
+  flex: 1;
+  padding: 10px 16px;
+  background: linear-gradient(
+    135deg,
+    var(--color-poolparty) 0%,
+    color-mix(in srgb, var(--color-poolparty) 80%, var(--color-blueberry)) 100%
+  );
+  color: var(--color-midnight);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-start-import:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px
+    color-mix(in srgb, var(--color-poolparty) 40%, transparent);
+}
+
 .queue-item-success {
   margin-top: 8px;
   font-size: 12px;

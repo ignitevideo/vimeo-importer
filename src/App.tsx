@@ -21,6 +21,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 type ActiveTab = 'importer' | 'browser';
 
 type ImportStage =
+  | 'pending' // Added to queue but not started
   | 'checking'
   | 'fetching_vimeo'
   | 'downloading'
@@ -807,15 +808,36 @@ function App() {
   );
 
   // Start a new import
-  const startImport = () => {
+  // Add video(s) to queue (does not start import)
+  // Supports comma-separated list of IDs
+  const addToQueue = () => {
     if (!canImport) return;
 
-    const newImport: ImportItem = {
-      id: `${Date.now()}-${vimeoId.trim()}`,
-      vimeoId: vimeoId.trim(),
-      stage: 'checking',
+    // Split by common separators (comma, semicolon, newline, tab, space)
+    // and clean up each ID
+    const ids = vimeoId
+      .split(/[,;\n\t\s]+/) // Split by comma, semicolon, newline, tab, or whitespace
+      .map((id) => id.trim())
+      .map((id) => {
+        // Extract numeric ID from Vimeo URLs if pasted
+        // e.g., "https://vimeo.com/123456789" -> "123456789"
+        const urlMatch = id.match(/vimeo\.com\/(\d+)/);
+        if (urlMatch) return urlMatch[1];
+        // Remove any non-numeric characters (keep only digits)
+        return id.replace(/\D/g, '');
+      })
+      .filter((id) => id.length > 0)
+      // Remove duplicates
+      .filter((id, index, arr) => arr.indexOf(id) === index);
+
+    if (ids.length === 0) return;
+
+    const newImports: ImportItem[] = ids.map((id, index) => ({
+      id: `${Date.now()}-${index}-${id}`,
+      vimeoId: id,
+      stage: 'pending',
       progress: 0,
-      statusText: 'Starting...',
+      statusText: 'Queued',
       vimeoData: null,
       igniteVideoId: null,
       thumbnailUrl: null,
@@ -828,13 +850,31 @@ function App() {
         tags,
         categoryId,
       },
-    };
+    }));
 
-    setImports((prev) => [newImport, ...prev]);
+    setImports((prev) => [...newImports, ...prev]);
     setVimeoId(''); // Clear input for next import
+  };
 
-    // Start the import process
-    runImport(newImport);
+  // Start import for a specific queued item
+  const beginImport = (importId: string) => {
+    const importItem = imports.find((i) => i.id === importId);
+    if (!importItem || importItem.stage !== 'pending') return;
+
+    // Update stage to checking before starting
+    updateImport(importId, (prev) => ({
+      ...prev,
+      stage: 'checking',
+      statusText: 'Starting...',
+    }));
+
+    // Get the updated item and run import
+    const updatedItem = {
+      ...importItem,
+      stage: 'checking' as ImportStage,
+      statusText: 'Starting...',
+    };
+    runImport(updatedItem);
   };
 
   // Remove a completed or errored import from the list
@@ -882,6 +922,8 @@ function App() {
   // Get stage badge class
   const getStageBadgeClass = (stage: ImportStage): string => {
     switch (stage) {
+      case 'pending':
+        return 'pending';
       case 'checking':
       case 'fetching_vimeo':
         return 'fetching';
@@ -905,6 +947,7 @@ function App() {
   // Get stage label
   const getStageLabel = (stage: ImportStage): string => {
     const labels: Record<ImportStage, string> = {
+      pending: 'Queued',
       checking: 'Checking',
       fetching_vimeo: 'Fetching',
       downloading: 'Downloading',
@@ -996,11 +1039,11 @@ function App() {
               <h2 className="section-title">Video</h2>
 
               <div className="form-row">
-                <label htmlFor="vimeo-id">Vimeo ID</label>
+                <label htmlFor="vimeo-id">Vimeo ID(s)</label>
                 <input
                   id="vimeo-id"
                   type="text"
-                  placeholder="e.g., 123456789"
+                  placeholder="ID, URL, or list (e.g., 123, 456 or paste from spreadsheet)"
                   value={vimeoId}
                   onChange={(e) => setVimeoId(e.target.value)}
                 />
@@ -1093,7 +1136,7 @@ function App() {
             <div className="actions">
               <button
                 className="btn-primary"
-                onClick={startImport}
+                onClick={addToQueue}
                 disabled={!canImport}
               >
                 Add to Queue
@@ -1145,14 +1188,17 @@ function App() {
                           {item.vimeoData?.name || `Vimeo ${item.vimeoId}`}
                         </div>
                         <div className="queue-item-actions">
-                          <span
-                            className={`status-badge ${getStageBadgeClass(
-                              item.stage
-                            )}`}
-                          >
-                            {getStageLabel(item.stage)}
-                          </span>
-                          {(item.stage === 'complete' ||
+                          {item.stage !== 'pending' && (
+                            <span
+                              className={`status-badge ${getStageBadgeClass(
+                                item.stage
+                              )}`}
+                            >
+                              {getStageLabel(item.stage)}
+                            </span>
+                          )}
+                          {(item.stage === 'pending' ||
+                            item.stage === 'complete' ||
                             item.stage === 'error' ||
                             item.stage === 'polling') && (
                             <button
@@ -1166,19 +1212,33 @@ function App() {
                         </div>
                       </div>
 
-                      {/* Progress bar */}
-                      <div className="progress-container">
-                        <div className="progress-bar">
-                          <div
-                            className="progress-fill"
-                            style={{ width: `${item.progress}%` }}
-                          />
+                      {/* Pending: Show start button */}
+                      {item.stage === 'pending' && (
+                        <div className="queue-item-pending">
+                          <button
+                            className="btn-start-import"
+                            onClick={() => beginImport(item.id)}
+                          >
+                            Start Import
+                          </button>
                         </div>
-                        <div className="progress-text">
-                          <span>{item.statusText}</span>
-                          <span>{Math.round(item.progress)}%</span>
+                      )}
+
+                      {/* Progress bar (not shown for pending) */}
+                      {item.stage !== 'pending' && (
+                        <div className="progress-container">
+                          <div className="progress-bar">
+                            <div
+                              className="progress-fill"
+                              style={{ width: `${item.progress}%` }}
+                            />
+                          </div>
+                          <div className="progress-text">
+                            <span>{item.statusText}</span>
+                            <span>{Math.round(item.progress)}%</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Error message */}
                       {item.errorMessage && (
